@@ -1,0 +1,46 @@
+services:
+  mymat-api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+    container_name: mymat-api
+    env_file:
+      - .env.vps
+    environment:
+      MYMAT_DB_PATH: /data/vector_db
+      MYMAT_COLLECTION: ${MYMAT_COLLECTION:-myrag_docs_markdown}
+      MYMAT_ALLOWED_ORIGINS: ${MYMAT_ALLOWED_ORIGINS:-http://154.12.245.254}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ${MYMAT_DB_PATH:?set MYMAT_DB_PATH in .env.vps}:/data/vector_db
+    ports:
+      - "127.0.0.1:18100:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  mymat-ui:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.ui
+      args:
+        VITE_BASE_PATH: ${VITE_BASE_PATH:-/agentic-mat/}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/agentic-mat}
+    container_name: mymat-ui
+    ports:
+      - "127.0.0.1:18101:80"
+    depends_on:
+      mymat-api:
+        condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s

@@ -1,0 +1,16 @@
+# Add inside the existing site block for 154.12.245.254 (or equivalent host).
+
+@agenticmat_root path /agentic-mat
+redir @agenticmat_root /agentic-mat/ 302
+
+@agenticmat_api path /agentic-mat/api/*
+handle @agenticmat_api {
+    uri strip_prefix /agentic-mat
+    reverse_proxy 127.0.0.1:18100
+}
+
+@agenticmat_ui path /agentic-mat/*
+handle @agenticmat_ui {
+    uri strip_prefix /agentic-mat
+    reverse_proxy 127.0.0.1:18101
+}

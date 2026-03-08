@@ -1,0 +1,29 @@
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir \
+    fastapi \
+    uvicorn \
+    python-dotenv \
+    "psycopg[binary]" \
+    requests \
+    beautifulsoup4 \
+    langchain \
+    langchain-core \
+    langchain-openai \
+    langchain-ollama \
+    langchain-chroma \
+    chromadb \
+    langchain-text-splitters \
+    openai \
+    tiktoken
+
+COPY myMAT_app /app/myMAT_app
+
+EXPOSE 8000
+
+CMD ["python", "-m", "myMAT_app.api.server", "--host", "0.0.0.0", "--port", "8000"]

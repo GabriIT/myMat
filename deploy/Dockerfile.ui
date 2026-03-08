@@ -1,0 +1,21 @@
+FROM node:24-alpine AS build
+
+WORKDIR /ui
+
+COPY myMAT_app/ui/package*.json ./
+RUN npm ci
+
+COPY myMAT_app/ui ./
+
+ARG VITE_BASE_PATH=/agentic-mat/
+ARG VITE_API_BASE_URL=/agentic-mat
+ENV VITE_BASE_PATH=${VITE_BASE_PATH}
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+
+RUN npm run build
+
+FROM nginx:1.27-alpine
+COPY deploy/nginx/ui-container.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /ui/dist /usr/share/nginx/html
+
+EXPOSE 80

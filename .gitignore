@@ -123,11 +123,14 @@ celerybeat.pid
 
 # Environments
 .env
+.env.vps
+.env.local
 .venv
 env/
 venv/
 ENV/
 env.bak/
+.env.vps
 venv.bak/
 llms/
 llms.bak/
