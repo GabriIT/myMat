@@ -357,6 +357,7 @@ class ThreadMessageItem(BaseModel):
     created_at: datetime
     structured: StructuredAnswer | None = None
     sources: list[SourceRef] = Field(default_factory=list)
+    routed_agent: AgentHint | None = None
 
 
 class GetThreadMessagesResponse(BaseModel):

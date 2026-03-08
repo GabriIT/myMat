@@ -17,6 +17,8 @@ Multi-agent MVP (LangGraph orchestrator) for materials Q&A + customer service + 
   - customer/material dropdowns
   - order form (Agent 3)
   - complaint form (Agent 4)
+  - form-driven send (Customer Service / Complaints can submit without typing a prompt)
+  - past-order dropdown auto-fill for Customer Service (order number, material, qty, price)
 
 ## 1. Environment
 From repo root:
@@ -40,7 +42,7 @@ bash scripts/sync_vectorstore_from_myrag.sh \
 
 ```bash
 # Python deps (using your existing venv)
-/home/gabri/udemy/llm_engineering/.venv/bin/pip install -r requirements.txt
+/home/gabri/udemy/llm_engineering/.venv/bin/python -m pip install -r requirements.txt
 
 # UI deps
 cd /home/gabri/apps/myMAT_app/myMAT_app/ui
@@ -54,6 +56,15 @@ cd /home/gabri/apps/myMAT_app
 /home/gabri/udemy/llm_engineering/.venv/bin/python -m myMAT_app.api.init_db --json
 /home/gabri/udemy/llm_engineering/.venv/bin/python scripts/seed_mock_data.py --reset --seed 42 --json
 ```
+
+If you get `password authentication failed for user "postgresql"`:
+
+```bash
+sudo -u postgres psql -d postgres -c "ALTER ROLE postgresql WITH PASSWORD 'postgresql';"
+PGPASSWORD=postgresql psql -h 127.0.0.1 -p 5432 -U postgresql -d myMAT_ops -c "SELECT current_user, current_database();"
+```
+
+Then rerun init + seed commands.
 
 Expected seeded minimum:
 - customers: `10`

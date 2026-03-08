@@ -18,20 +18,28 @@ BEGIN
     CREATE ROLE postgresql LOGIN PASSWORD 'postgresql';
   END IF;
 END $$;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'myMAT_ops') THEN
-    CREATE DATABASE "myMAT_ops" OWNER postgresql;
-  END IF;
-END $$;
 SQL
+
+sudo -u postgres psql -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'myMAT_ops'" | grep -q 1 || \
+sudo -u postgres createdb -O postgresql myMAT_ops
 ```
 
 ## 2. Enable extension as superuser
 
 ```bash
 sudo -u postgres psql -d myMAT_ops -c "CREATE EXTENSION IF NOT EXISTS vector;"
+```
+
+If role `postgresql` already exists with another password, reset it:
+
+```bash
+sudo -u postgres psql -d postgres -c "ALTER ROLE postgresql WITH PASSWORD 'postgresql';"
+```
+
+Verify login using the same credentials used in `.env`:
+
+```bash
+PGPASSWORD=postgresql psql -h 127.0.0.1 -p 5432 -U postgresql -d myMAT_ops -c "SELECT current_user, current_database();"
 ```
 
 ## 3. Initialize app schemas

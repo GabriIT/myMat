@@ -33,6 +33,7 @@ export interface ThreadMessage {
   createdAt: string;
   structured?: StructuredAnswer;
   sources?: SourceRef[];
+  routedAgent?: AgentHint;
 }
 
 export interface ChatThread {
@@ -77,6 +78,7 @@ export interface ThreadMessageApi {
   created_at: string;
   structured?: StructuredAnswer;
   sources?: SourceRef[];
+  routed_agent?: AgentHint;
 }
 
 export interface MatFormPayload {
@@ -142,6 +144,18 @@ export interface ConfirmOrderResponse extends QuoteResponse {
   order_id: number;
   order_no: string;
   status: string;
+}
+
+export interface OrderItem {
+  order_no: string;
+  customer_name: string;
+  material_name: string;
+  quantity_tons: number;
+  final_price_cny_per_kg: number;
+  status: string;
+  promised_delivery_from?: string;
+  promised_delivery_to?: string;
+  created_at: string;
 }
 
 export interface ComplaintEvent {

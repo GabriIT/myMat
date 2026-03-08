@@ -195,6 +195,7 @@ class ThreadMemoryStore:
         dims = self.config.vector_dims
         schema_sql = f"""
         CREATE EXTENSION IF NOT EXISTS vector;
+        CREATE SCHEMA IF NOT EXISTS memory;
 
         CREATE TABLE IF NOT EXISTS memory.thread_sessions (
           username TEXT NOT NULL,
@@ -576,6 +577,9 @@ class ThreadMemoryStore:
                     if structured is not None:
                         message["structured"] = structured
                     message["sources"] = self._coerce_sources(metadata.get("sources"))
+                    routed_agent = metadata.get("routed_agent")
+                    if isinstance(routed_agent, str) and routed_agent.strip():
+                        message["routed_agent"] = routed_agent.strip()
                 messages.append(message)
             return {"thread": summary, "messages": messages}
         except Exception as exc:  # pragma: no cover - depends on DB runtime

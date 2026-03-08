@@ -6,8 +6,15 @@ import { ThreadSidebar } from "./components/ThreadSidebar";
 import { ThreadView } from "./components/ThreadView";
 import { useAuth } from "./hooks/useAuth";
 import { useThreads } from "./hooks/useThreads";
-import { listCustomers, listMaterials } from "./services/api";
-import type { AgentHint, CatalogCustomer, CatalogMaterial, ChatModelOption, MatFormPayload } from "./types";
+import { listCustomers, listMaterials, listOrders } from "./services/api";
+import type {
+  AgentHint,
+  CatalogCustomer,
+  CatalogMaterial,
+  ChatModelOption,
+  MatFormPayload,
+  OrderItem,
+} from "./types";
 
 const AGENT_BUTTONS: Array<{ id: AgentHint; label: string }> = [
   { id: "agent_material_queries", label: "Agent Material Queries" },
@@ -15,6 +22,8 @@ const AGENT_BUTTONS: Array<{ id: AgentHint; label: string }> = [
   { id: "agent_customer_service", label: "Agent Customer Service" },
   { id: "agent_complains_management", label: "Agent Complains Management" },
 ];
+
+type ServiceAction = "quote" | "confirm" | "eta";
 
 export default function App() {
   const { currentUser, register, login, logout } = useAuth();
@@ -30,6 +39,7 @@ export default function App() {
     deleteThread,
     sendQuery,
   } = useThreads(currentUser);
+
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState<ChatModelOption>("gpt-4.1-nano");
   const [answerViewMode, setAnswerViewMode] = useState<"structured" | "raw">("structured");
@@ -38,6 +48,10 @@ export default function App() {
   const [customers, setCustomers] = useState<CatalogCustomer[]>([]);
   const [materials, setMaterials] = useState<CatalogMaterial[]>([]);
   const [catalogWarning, setCatalogWarning] = useState<string | null>(null);
+
+  const [serviceAction, setServiceAction] = useState<ServiceAction>("quote");
+  const [serviceOrders, setServiceOrders] = useState<OrderItem[]>([]);
+  const [complaintOrders, setComplaintOrders] = useState<OrderItem[]>([]);
 
   const [serviceForm, setServiceForm] = useState<MatFormPayload>({
     customer_name: "",
@@ -87,6 +101,56 @@ export default function App() {
     };
   }, [currentUser]);
 
+  useEffect(() => {
+    const customer = (serviceForm.customer_name ?? "").trim();
+    if (!customer) {
+      setServiceOrders([]);
+      return;
+    }
+    let cancelled = false;
+    async function loadOrders() {
+      try {
+        const orders = await listOrders(customer, 50);
+        if (!cancelled) {
+          setServiceOrders(orders);
+        }
+      } catch {
+        if (!cancelled) {
+          setServiceOrders([]);
+        }
+      }
+    }
+    void loadOrders();
+    return () => {
+      cancelled = true;
+    };
+  }, [serviceForm.customer_name]);
+
+  useEffect(() => {
+    const customer = (complaintForm.customer_name ?? "").trim();
+    if (!customer) {
+      setComplaintOrders([]);
+      return;
+    }
+    let cancelled = false;
+    async function loadOrders() {
+      try {
+        const orders = await listOrders(customer, 50);
+        if (!cancelled) {
+          setComplaintOrders(orders);
+        }
+      } catch {
+        if (!cancelled) {
+          setComplaintOrders([]);
+        }
+      }
+    }
+    void loadOrders();
+    return () => {
+      cancelled = true;
+    };
+  }, [complaintForm.customer_name]);
+
   const activeAgentLabel = useMemo(
     () => AGENT_BUTTONS.find((item) => item.id === selectedAgent)?.label ?? "Agent",
     [selectedAgent],
@@ -104,6 +168,81 @@ export default function App() {
       return complaintForm;
     }
     return undefined;
+  }
+
+  function canSendWithoutTypedPrompt(): boolean {
+    return selectedAgent === "agent_customer_service" || selectedAgent === "agent_complains_management";
+  }
+
+  function defaultPromptForCurrentAgent(): string {
+    if (selectedAgent === "agent_customer_service") {
+      if (serviceAction === "eta") {
+        return "No prompt required: ETA request will be generated from selected customer/order fields.";
+      }
+      if (serviceAction === "confirm") {
+        return "No prompt required: confirmation request will be generated from form fields.";
+      }
+      return "No prompt required: quote request will be generated from form fields.";
+    }
+    if (selectedAgent === "agent_complains_management") {
+      return "No prompt required: complaint create/status request will be generated from form fields.";
+    }
+    return "Your Query - Your Project Description - We provide your solution!";
+  }
+
+  function buildEffectivePrompt(rawPrompt: string): string {
+    const typed = rawPrompt.trim();
+    if (typed) {
+      return typed;
+    }
+
+    if (selectedAgent === "agent_customer_service") {
+      const customer = (serviceForm.customer_name ?? "").trim() || "(missing customer)";
+      const material = (serviceForm.material_name ?? "").trim() || "(missing material)";
+      const qty = serviceForm.quantity_tons ?? "(missing quantity)";
+      const orderNo = (serviceForm.order_no ?? "").trim() || "(missing order no)";
+      const price = serviceForm.price_cny_per_kg ?? "auto";
+
+      if (serviceAction === "eta") {
+        return `Please check delivery ETA for order ${orderNo} for customer ${customer}.`;
+      }
+      if (serviceAction === "confirm") {
+        return `Please confirm order for customer ${customer}, material ${material}, quantity ${qty} tons, price ${price} CNY/kg.`;
+      }
+      return `Please provide quote for customer ${customer}, material ${material}, quantity ${qty} tons, target price ${price} CNY/kg.`;
+    }
+
+    if (selectedAgent === "agent_complains_management") {
+      const ticket = (complaintForm.ticket_no ?? "").trim();
+      const title = (complaintForm.complaint_title ?? "").trim();
+      const description = (complaintForm.complaint_description ?? "").trim();
+      const customer = (complaintForm.customer_name ?? "").trim() || "(missing customer)";
+      const orderNo = (complaintForm.order_no ?? "").trim() || "unspecified";
+      const severity = (complaintForm.severity ?? "medium").trim();
+
+      if (ticket && !title && !description) {
+        return `Please check complaint status for ticket ${ticket}.`;
+      }
+      return `Please open complaint for customer ${customer}, order ${orderNo}, severity ${severity}, title '${title || "(missing title)"}', description '${description || "(missing description)"}'.`;
+    }
+
+    return typed;
+  }
+
+  function onServiceOrderSelect(orderNo: string): void {
+    const order = serviceOrders.find((item) => item.order_no === orderNo);
+    setServiceForm((prev) => {
+      if (!order) {
+        return { ...prev, order_no: orderNo };
+      }
+      return {
+        ...prev,
+        order_no: order.order_no,
+        material_name: order.material_name,
+        quantity_tons: order.quantity_tons,
+        price_cny_per_kg: order.final_price_cny_per_kg,
+      };
+    });
   }
 
   return (
@@ -179,6 +318,17 @@ export default function App() {
             <h3>Customer Service Form</h3>
             <div className="agent-grid">
               <label>
+                Action
+                <select
+                  value={serviceAction}
+                  onChange={(event) => setServiceAction(event.target.value as ServiceAction)}
+                >
+                  <option value="quote">Quote</option>
+                  <option value="confirm">Confirm Order</option>
+                  <option value="eta">Check ETA</option>
+                </select>
+              </label>
+              <label>
                 Customer
                 <select
                   value={serviceForm.customer_name ?? ""}
@@ -186,6 +336,7 @@ export default function App() {
                     setServiceForm((prev) => ({
                       ...prev,
                       customer_name: event.target.value,
+                      order_no: "",
                     }))
                   }
                 >
@@ -193,6 +344,20 @@ export default function App() {
                   {customers.map((item) => (
                     <option key={item.customer_name} value={item.customer_name}>
                       {item.customer_name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Existing Order (auto-fill)
+                <select
+                  value={serviceForm.order_no ?? ""}
+                  onChange={(event) => onServiceOrderSelect(event.target.value)}
+                >
+                  <option value="">Select past order (optional)</option>
+                  {serviceOrders.map((order) => (
+                    <option key={order.order_no} value={order.order_no}>
+                      {order.order_no} - {order.material_name} - {order.quantity_tons}t - {order.final_price_cny_per_kg} CNY/kg
                     </option>
                   ))}
                 </select>
@@ -275,15 +440,6 @@ export default function App() {
                   }
                 />
               </label>
-              <label>
-                Order Number (for ETA)
-                <input
-                  value={serviceForm.order_no ?? ""}
-                  onChange={(event) =>
-                    setServiceForm((prev) => ({ ...prev, order_no: event.target.value }))
-                  }
-                />
-              </label>
             </div>
           </section>
         ) : null}
@@ -297,7 +453,11 @@ export default function App() {
                 <select
                   value={complaintForm.customer_name ?? ""}
                   onChange={(event) =>
-                    setComplaintForm((prev) => ({ ...prev, customer_name: event.target.value }))
+                    setComplaintForm((prev) => ({
+                      ...prev,
+                      customer_name: event.target.value,
+                      order_no: "",
+                    }))
                   }
                 >
                   <option value="">Select customer</option>
@@ -309,13 +469,20 @@ export default function App() {
                 </select>
               </label>
               <label>
-                Order Number
-                <input
+                Existing Order (optional)
+                <select
                   value={complaintForm.order_no ?? ""}
                   onChange={(event) =>
                     setComplaintForm((prev) => ({ ...prev, order_no: event.target.value }))
                   }
-                />
+                >
+                  <option value="">Select past order (optional)</option>
+                  {complaintOrders.map((order) => (
+                    <option key={order.order_no} value={order.order_no}>
+                      {order.order_no} - {order.material_name}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label>
                 Ticket Number (status check)
@@ -371,8 +538,16 @@ export default function App() {
           disabled={!currentUser}
           isSending={isSending}
           selectedModel={selectedModel}
+          allowEmptySend={canSendWithoutTypedPrompt()}
+          placeholder={defaultPromptForCurrentAgent()}
           onSelectModel={setSelectedModel}
-          onSend={(query, model) => sendQuery(query, model, selectedAgent, selectedFormPayload())}
+          onSend={(query, model) => {
+            const effectivePrompt = buildEffectivePrompt(query);
+            if (!effectivePrompt.trim()) {
+              return Promise.resolve();
+            }
+            return sendQuery(effectivePrompt, model, selectedAgent, selectedFormPayload());
+          }}
         />
       </main>
     </div>

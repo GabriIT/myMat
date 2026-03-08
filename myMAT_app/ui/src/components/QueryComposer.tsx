@@ -11,6 +11,8 @@ interface QueryComposerProps {
   disabled: boolean;
   isSending: boolean;
   selectedModel: ChatModelOption;
+  allowEmptySend?: boolean;
+  placeholder?: string;
   onSelectModel: (model: ChatModelOption) => void;
   onSend: (query: string, model: ChatModelOption) => Promise<void>;
 }
@@ -19,6 +21,8 @@ export function QueryComposer({
   disabled,
   isSending,
   selectedModel,
+  allowEmptySend = false,
+  placeholder = "Your Query - Your Project Description - We provide your solution!",
   onSelectModel,
   onSend,
 }: QueryComposerProps) {
@@ -27,10 +31,12 @@ export function QueryComposer({
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const trimmed = query.trim();
-    if (!trimmed || disabled || isSending) {
+    if ((!trimmed && !allowEmptySend) || disabled || isSending) {
       return;
     }
-    setQuery("");
+    if (trimmed) {
+      setQuery("");
+    }
     await onSend(trimmed, selectedModel);
   }
 
@@ -54,13 +60,13 @@ export function QueryComposer({
         </label>
         <input
           aria-label="Ask a question"
-          placeholder="Your Query - Your Project Description - We provide your solution!"
+          placeholder={placeholder}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           disabled={disabled || isSending}
         />
       </div>
-      <button type="submit" disabled={disabled || isSending || !query.trim()}>
+      <button type="submit" disabled={disabled || isSending || (!allowEmptySend && !query.trim())}>
         {isSending ? "Sending..." : "Send"}
       </button>
     </form>

@@ -7,6 +7,7 @@ import type {
   ConfirmOrderResponse,
   MatFormPayload,
   MatQueryResponse,
+  OrderItem,
   QuoteResponse,
   Role,
   ThreadMessageApi,
@@ -77,6 +78,10 @@ interface CatalogCustomersResponse {
 
 interface CatalogMaterialsResponse {
   materials: CatalogMaterial[];
+}
+
+interface OrdersResponse {
+  orders: OrderItem[];
 }
 
 interface QuoteRequest {
@@ -296,6 +301,20 @@ export async function confirmOrder(payload: ConfirmOrderRequest): Promise<Confir
     await parseError(response, "Confirm order failed");
   }
   return (await response.json()) as ConfirmOrderResponse;
+}
+
+export async function listOrders(customerName?: string, limit = 50): Promise<OrderItem[]> {
+  const params = new URLSearchParams();
+  if (customerName?.trim()) {
+    params.set("customer_name", customerName.trim());
+  }
+  params.set("limit", String(limit));
+  const response = await fetch(apiUrl(`/api/orders?${params.toString()}`));
+  if (!response.ok) {
+    await parseError(response, "List orders failed");
+  }
+  const payload = (await response.json()) as OrdersResponse;
+  return payload.orders ?? [];
 }
 
 export async function createComplaint(payload: ComplaintCreateRequest): Promise<ComplaintResponse> {

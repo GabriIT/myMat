@@ -10,22 +10,29 @@ FALLBACK_ESCALATION_TEXT = (
 
 def is_selection_query(message: str) -> bool:
     text = message.lower()
-    selection_terms = [
-        "material selection",
-        "select material",
-        "which polymer",
-        "recommend material",
-        "application",
-        "requirements",
+    if any(term in text for term in ("material selection", "select material", "which polymer", "recommend material")):
+        return True
+
+    application_terms = ("application", "for ", "use case", "component", "part")
+    property_terms = (
+        "requirement",
         "property",
         "properties",
         "tensile",
         "temperature",
+        "thermal",
         "flame",
+        "ul94",
         "chemical resistance",
-    ]
-    matches = sum(1 for term in selection_terms if term in text)
-    return matches >= 2
+        "dielectric",
+        "creep",
+        "stiffness",
+        "strength",
+    )
+
+    has_application = any(term in text for term in application_terms)
+    property_hits = sum(1 for term in property_terms if term in text)
+    return has_application and property_hits >= 1
 
 
 def ask_for_clarification(message: str) -> bool:

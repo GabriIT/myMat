@@ -75,6 +75,7 @@ function mapApiMessage(message: ThreadMessageApi): ThreadMessage {
     createdAt: message.created_at,
     structured: message.structured,
     sources: message.sources ?? [],
+    routedAgent: message.routed_agent,
   };
 }
 
@@ -359,6 +360,7 @@ export function useThreads(username: string | null) {
           answer_text: response.answer_text,
         },
         sources: response.sources,
+        routedAgent: response.meta.routed_agent,
       };
 
       const completedThread: ChatThread = {

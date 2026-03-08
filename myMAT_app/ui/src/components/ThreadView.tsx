@@ -27,6 +27,9 @@ export function ThreadView({ thread, answerViewMode }: ThreadViewProps) {
             <strong>{message.role === "user" ? "You" : "Assistant"}</strong>
             <time>{formatTime(message.createdAt)}</time>
           </header>
+          {message.role === "assistant" && message.routedAgent ? (
+            <div className="agent-badge">Agent: {message.routedAgent}</div>
+          ) : null}
           {message.role === "assistant" && answerViewMode === "structured" && message.structured ? (
             <div className="structured-answer">
               <section className="prompt-block">

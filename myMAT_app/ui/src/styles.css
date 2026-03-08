@@ -444,6 +444,17 @@ textarea {
   color: var(--text-muted);
 }
 
+.agent-badge {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
 .bubble p {
   margin: 0;
   white-space: pre-wrap;
